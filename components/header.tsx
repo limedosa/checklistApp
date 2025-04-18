@@ -1,22 +1,17 @@
 "use client"
 
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Button } from "@/components/ui/button"
 import { UserDropdown } from "@/components/user-dropdown"
-import { Search } from "@/components/search"
+import Search from "@/components/search"
+import { useSession } from "next-auth/react"
 
 export default function Header() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const { data: session } = useSession()
+  const isLoggedIn = !!session
   const router = useRouter()
-
-  useEffect(() => {
-    // Check if user is logged in by looking for the user cookie
-    const hasUserCookie = document.cookie.split(";").some((item) => item.trim().startsWith("user="))
-    setIsLoggedIn(hasUserCookie)
-  }, [])
 
   return (
     <header className="border-b sticky top-0 z-50 bg-background">

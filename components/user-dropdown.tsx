@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -12,29 +11,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, Settings, LogOut, HelpCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { signOut, useSession } from "next-auth/react"
 
 export function UserDropdown() {
-  const [username, setUsername] = useState("User")
-  const [email, setEmail] = useState("user@example.com")
+  const { data: session } = useSession()
   const router = useRouter()
+  
+  // Get user data from session
+  const username = session?.user?.name || "User"
+  const email = session?.user?.email || "user@example.com"
+  const avatarUrl = session?.user?.image || "/placeholder.svg?height=36&width=36"
 
-  useEffect(() => {
-    // In a real app, you would fetch user data from an API or context
-    // For this demo, we'll just use mock data
-    const mockUser = {
-      name: "Demo User",
-      email: "demo@example.com",
-    }
-
-    setUsername(mockUser.name)
-    setEmail(mockUser.email)
-  }, [])
-
-  const handleLogout = () => {
-    // Clear the user cookie
-    document.cookie = "user=; path=/; max-age=0"
+  const handleLogout = async () => {
+    await signOut({ redirect: false })
     router.push("/")
     router.refresh()
   }
@@ -44,8 +34,8 @@ export function UserDropdown() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-9 w-9 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src="/placeholder.svg?height=36&width=36" alt={username} />
-            <AvatarFallback>{username.charAt(0)}</AvatarFallback>
+            <AvatarImage src={avatarUrl} alt={username} />
+            <AvatarFallback>{username?.charAt(0)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -58,23 +48,16 @@ export function UserDropdown() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <User className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+          <DropdownMenuItem onClick={() => router.push("/profile")}>
+            Profile
           </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <HelpCircle className="mr-2 h-4 w-4" />
-            <span>Help</span>
+          <DropdownMenuItem onClick={() => router.push("/settings")}>
+            Settings
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Log out</span>
+          Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
