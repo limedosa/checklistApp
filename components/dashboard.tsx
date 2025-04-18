@@ -10,60 +10,10 @@ import type { Checklist } from "@/components/checklist-builder"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
+import { fetchChecklists as fetchChecklistsFromApi } from "@/lib/api-client"
 
-// Mock data for demonstration
-const mockChecklists: Checklist[] = [
-  {
-    id: "1",
-    name: "Project Onboarding",
-    categories: [
-      {
-        id: "cat-1",
-        name: "Documentation",
-        items: [
-          { id: "item-1", name: "Project Brief", files: [] },
-          { id: "item-2", name: "Technical Requirements", files: [] },
-        ],
-      },
-      {
-        id: "cat-2",
-        name: "Setup",
-        items: [
-          { id: "item-3", name: "Development Environment", files: [] },
-          { id: "item-4", name: "Access Credentials", files: [] },
-        ],
-      },
-    ],
-  },
-  {
-    id: "2",
-    name: "Client Approval Process",
-    categories: [
-      {
-        id: "cat-3",
-        name: "Design",
-        items: [
-          { id: "item-5", name: "Mockups", files: [] },
-          { id: "item-6", name: "Style Guide", files: [] },
-        ],
-      },
-    ],
-  },
-  {
-    id: "3",
-    name: "Weekly Team Checklist",
-    categories: [
-      {
-        id: "cat-4",
-        name: "Meetings",
-        items: [
-          { id: "item-7", name: "Sprint Planning", files: [] },
-          { id: "item-8", name: "Retrospective", files: [] },
-        ],
-      },
-    ],
-  },
-]
+// Remove or comment out the mock data since we're using the API now
+// const mockChecklists: Checklist[] = [...]
 
 export default function Dashboard() {
   const [checklists, setChecklists] = useState<Checklist[]>([])
@@ -74,21 +24,44 @@ export default function Dashboard() {
   const { toast } = useToast()
 
   useEffect(() => {
-    // In a real app, this would be an API call to fetch user's checklists
-    const fetchChecklists = async () => {
+    // Renamed to avoid conflict with the imported function
+    const loadChecklists = async () => {
       try {
-        await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
-        setChecklists(mockChecklists)
-        setFilteredChecklists(mockChecklists)
+        setIsLoading(true)
+        // Use the imported function from api-client.ts
+        const data = await fetchChecklistsFromApi()
+        console.log('API Response:', data)
+        
+        // Handle different possible response formats
+        let checklistArray: Checklist[] = []
+        if (Array.isArray(data)) {
+          checklistArray = data
+        } else if (data && typeof data === 'object') {
+          // If data is an object with checklists property (common API response pattern)
+          if (Array.isArray(data.checklists)) {
+            checklistArray = data.checklists
+          } else if (data.checklists && typeof data.checklists === 'object') {
+            // If checklists is an object with ID keys
+            checklistArray = Object.values(data.checklists)
+          }
+        }
+
+        setChecklists(checklistArray)
+        setFilteredChecklists(checklistArray)
       } catch (error) {
         console.error("Failed to fetch checklists:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load checklists",
+          variant: "destructive",
+        })
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchChecklists()
-  }, [])
+    loadChecklists()
+  }, [toast])
 
   // Filter checklists based on search query
   useEffect(() => {
