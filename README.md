@@ -46,6 +46,75 @@ This tool is ideal for onboarding processes, client approvals, project managemen
 - JWT for authentication
 - Prisma or Mongoose for ORM
 
+## Prisma Schema
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // or "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  name          String?
+  password      String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  checklists    Checklist[] @relation("UserChecklists")
+  sharedWith    Checklist[] @relation("SharedChecklists")
+}
+
+model Checklist {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  userId      String
+  owner       User        @relation("UserChecklists", fields: [userId], references: [id])
+  sharedWith  User[]      @relation("SharedChecklists")
+  categories  Category[]
+  isPublic    Boolean     @default(false)
+  shareCode   String?     @unique
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  order       Int
+  checklistId String
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  items       Item[]
+}
+
+model Item {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  isCompleted Boolean   @default(false)
+  order       Int
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  files       File[]
+}
+
+model File {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  size      Int
+  type      String
+  itemId    String
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+```
+
 ## Getting Started
 
 ### Prerequisites
@@ -154,6 +223,26 @@ custom-checklist-builder/
 │   ├── globals.css         # Global styles
 │   ├── layout.tsx          # Root layout
 │   └── page.tsx            # Home page
+├── api/                    # API routes
+│   ├── auth/               # Authentication routes
+│   │   ├── login/route.ts
+│   │   ├── register/route.ts
+│   │   └── logout/route.ts
+│   ├── checklists/         # Checklist routes
+│   │   ├── route.ts
+│   │   └── [id]/           # Checklist-specific routes
+│   │       ├── route.ts
+│   │       ├── share/route.ts
+│   │       └── clone/route.ts
+│   ├── categories/         # Category routes
+│   │   ├── route.ts
+│   │   └── [id]/route.ts
+│   ├── items/              # Item routes
+│   │   ├── route.ts
+│   │   └── [id]/           # Item-specific routes
+│   │       ├── route.ts
+│   │       └── files/route.ts
+│   └── uploads/route.ts    # File upload route
 ├── components/             # React components
 │   ├── ui/                 # UI components (shadcn)
 │   ├── checklist-builder.tsx  # Main checklist component
@@ -208,3 +297,124 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 Created with ❤️ by [Your Name]
+
+---
+
+## API Routes
+
+### Register Route
+
+```typescript
+import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+const prisma = new PrismaClient();
+
+export async function POST(req: Request) {
+  try {
+    const { name, email, password } = await req.json();
+    
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+    
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'User already exists' },
+        { status: 409 }
+      );
+    }
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true
+      }
+    });
+    
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET!,
+      { expiresIn: '7d' }
+    );
+    
+    return NextResponse.json({ user, token }, { status: 201 });
+  } catch (error) {
+    console.error('Registration error:', error);
+    return NextResponse.json(
+      { error: 'Registration failed' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Login Route
+
+```typescript
+import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+const prisma = new PrismaClient();
+
+export async function POST(req: Request) {
+  try {
+    const { email, password } = await req.json();
+    
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+    
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+    
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET!,
+      { expiresIn: '7d' }
+    );
+    
+    const { password: _, ...userWithoutPassword } = user;
+    
+    return NextResponse.json({ user: userWithoutPassword, token });
+  } catch (error) {
+    console.error('Login error:', error);
+    return NextResponse.json(
+      { error: 'Login failed' },
+      { status: 500 }
+    );
+  }
+}
+```

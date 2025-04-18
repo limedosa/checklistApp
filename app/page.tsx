@@ -1,12 +1,11 @@
 import LandingPage from "@/components/landing-page"
-import { cookies } from "next/headers"
 import Dashboard from "@/components/dashboard"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 
-export default function Home() {
-  // In a real app, this would verify a JWT token or session
-  // For this demo, we'll just check if a user cookie exists
-  const cookieStore = cookies()
-  const isLoggedIn = cookieStore.has("user")
+export default async function Home() {
+  const session = await getServerSession(authOptions)
+  const isLoggedIn = !!session
 
   return isLoggedIn ? <Dashboard /> : <LandingPage />
 }

@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
+import GoogleLoginButton from "@/components/google-login-button"
+import { signIn } from "next-auth/react"
 
 export default function LoginForm() {
   const [email, setEmail] = useState("")
@@ -22,18 +24,23 @@ export default function LoginForm() {
     setIsLoading(true)
 
     try {
-      // In a real app, this would be an API call to authenticate
-      // For this demo, we'll just set a cookie and redirect
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
+      const result = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      })
 
-      // Set a cookie to simulate authentication
-      document.cookie = "user=demo-user; path=/; max-age=86400"
+      if (result?.error) {
+        // Handle error
+        console.error(result.error)
+        setIsLoading(false)
+        return
+      }
 
       router.push("/")
       router.refresh()
     } catch (error) {
       console.error("Login failed:", error)
-    } finally {
       setIsLoading(false)
     }
   }
@@ -71,6 +78,17 @@ export default function LoginForm() {
             <Checkbox id="remember" />
             <Label htmlFor="remember">Remember me</Label>
           </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+              </span>
+            </div>
+          </div>
+          <GoogleLoginButton />
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <Button type="submit" className="w-full" disabled={isLoading}>
