@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { UserDropdown } from "@/components/user-dropdown"
-import Search from "@/components/search"
+import { Search } from "@/components/search"
 import { useSession } from "next-auth/react"
 
 export default function Header() {
