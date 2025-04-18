@@ -11,6 +11,12 @@ import SharedView from "@/components/shared-view"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { 
+  fetchChecklist, 
+  createChecklist, 
+  updateChecklist, 
+  cloneChecklist as cloneChecklistApi 
+} from "@/lib/api-client"
 
 export type FileItem = {
   id: string
@@ -32,84 +38,6 @@ export type Checklist = {
   clonedFrom?: string
 }
 
-// Mock data for demonstration
-const mockChecklists: Record<string, Checklist> = {
-  "1": {
-    id: "1",
-    name: "Project Onboarding",
-    categories: [
-      {
-        id: "cat-1",
-        name: "Documentation",
-        items: [
-          { id: "item-1", name: "Project Brief", files: [] },
-          { id: "item-2", name: "Technical Requirements", files: [] },
-        ],
-      },
-      {
-        id: "cat-2",
-        name: "Setup",
-        items: [
-          { id: "item-3", name: "Development Environment", files: [] },
-          { id: "item-4", name: "Access Credentials", files: [] },
-        ],
-      },
-    ],
-  },
-  "2": {
-    id: "2",
-    name: "Client Approval Process",
-    categories: [
-      {
-        id: "cat-3",
-        name: "Design",
-        items: [
-          { id: "item-5", name: "Mockups", files: [] },
-          { id: "item-6", name: "Style Guide", files: [] },
-        ],
-      },
-    ],
-  },
-  "3": {
-    id: "3",
-    name: "Weekly Team Checklist",
-    categories: [
-      {
-        id: "cat-4",
-        name: "Meetings",
-        items: [
-          { id: "item-7", name: "Sprint Planning", files: [] },
-          { id: "item-8", name: "Retrospective", files: [] },
-        ],
-      },
-    ],
-  },
-  "cloned-1": {
-    id: "cloned-1",
-    name: "Project Onboarding (Copy)",
-    categories: [
-      {
-        id: "cat-1-clone",
-        name: "Documentation",
-        items: [
-          { id: "item-1-clone", name: "Project Brief", files: [] },
-          { id: "item-2-clone", name: "Technical Requirements", files: [] },
-        ],
-      },
-      {
-        id: "cat-2-clone",
-        name: "Setup",
-        items: [
-          { id: "item-3-clone", name: "Development Environment", files: [] },
-          { id: "item-4-clone", name: "Access Credentials", files: [] },
-        ],
-      },
-    ],
-    isCloned: true,
-    clonedFrom: "1",
-  },
-}
-
 interface ChecklistBuilderProps {
   id?: string
 }
@@ -127,14 +55,16 @@ export default function ChecklistBuilder({ id = "new" }: ChecklistBuilderProps) 
   const { toast } = useToast()
 
   useEffect(() => {
-    const fetchChecklist = async () => {
+    const fetchChecklistData = async () => {
       try {
-        // In a real app, this would be an API call to fetch the checklist
-        await new Promise((resolve) => setTimeout(resolve, 800)) // Simulate API call
-
-        if (id !== "new" && mockChecklists[id]) {
-          setChecklist(mockChecklists[id])
-          setNewTitle(mockChecklists[id].name)
+        setIsLoading(true)
+        
+        if (id !== "new") {
+          const data = await fetchChecklist(id)
+          setChecklist(data)
+          setNewTitle(data.name)
+        } else {
+          setIsLoading(false)
         }
       } catch (error) {
         console.error("Failed to fetch checklist:", error)
@@ -148,7 +78,7 @@ export default function ChecklistBuilder({ id = "new" }: ChecklistBuilderProps) 
       }
     }
 
-    fetchChecklist()
+    fetchChecklistData()
   }, [id, toast])
 
   const addCategory = () => {
@@ -192,43 +122,84 @@ export default function ChecklistBuilder({ id = "new" }: ChecklistBuilderProps) 
     setIsEditingTitle(false)
   }
 
-  const saveChecklist = () => {
-    // Mock save functionality
-    toast({
-      title: "Success",
-      description: "Checklist saved successfully!",
-    })
+  const saveChecklist = async () => {
+    try {
+      setIsLoading(true)
+      
+      let savedChecklist: Checklist
+      
+      if (id === "new") {
+        // Create a new checklist
+        savedChecklist = await createChecklist({
+          name: checklist.name,
+          categories: checklist.categories,
+          isCloned: checklist.isCloned,
+          clonedFrom: checklist.clonedFrom
+        })
+        
+        // Redirect to the new checklist URL
+        router.push(`/checklist/${savedChecklist.id}`)
+        router.refresh()
+      } else {
+        // Update existing checklist
+        savedChecklist = await updateChecklist(id, {
+          name: checklist.name,
+          categories: checklist.categories
+        })
+      }
+      
+      setChecklist(savedChecklist)
+      
+      toast({
+        title: "Success",
+        description: "Checklist saved successfully!",
+      })
+    } catch (error) {
+      console.error("Failed to save checklist:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save checklist",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const cloneChecklist = () => {
-    // Create a deep copy with new IDs
-    const clonedChecklist: Checklist = {
-      id: `cloned-${Date.now()}`,
-      name: `${checklist.name} (Copy)`,
-      categories: checklist.categories.map((category) => ({
-        id: `${category.id}-clone-${Date.now()}`,
-        name: category.name,
-        items: category.items.map((item) => ({
-          id: `${item.id}-clone-${Date.now()}`,
-          name: item.name,
-          files: [],
-        })),
-      })),
-      isCloned: true,
-      clonedFrom: checklist.id,
+  const cloneChecklist = async () => {
+    try {
+      setIsLoading(true)
+      
+      if (id === "new") {
+        // If it's a new unsaved checklist, just save it first
+        toast({
+          title: "Save Required",
+          description: "Please save your checklist before cloning it.",
+        })
+        setIsLoading(false)
+        return
+      }
+      
+      const clonedChecklist = await cloneChecklistApi(id, `${checklist.name} (Copy)`)
+      
+      toast({
+        title: "Success",
+        description: "Checklist cloned successfully!",
+      })
+      
+      // Navigate to the cloned checklist
+      router.push(`/checklist/${clonedChecklist.id}`)
+      router.refresh()
+    } catch (error) {
+      console.error("Failed to clone checklist:", error)
+      toast({
+        title: "Error",
+        description: "Failed to clone checklist",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
-
-    // In a real app, this would be an API call to save the cloned checklist
-    toast({
-      title: "Success",
-      description: "Checklist cloned successfully!",
-    })
-
-    // Navigate to the new cloned checklist
-    // For demo purposes, we'll just show a success message and redirect to a mock cloned checklist
-    setTimeout(() => {
-      router.push("/checklist/cloned-1")
-    }, 1000)
   }
 
   if (isLoading) {
@@ -252,10 +223,10 @@ export default function ChecklistBuilder({ id = "new" }: ChecklistBuilderProps) 
         <span className="text-muted-foreground">Back to Dashboard</span>
       </div>
 
-      {checklist.isCloned && (
+      {checklist.isCloned && checklist.clonedFrom && (
         <div className="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 px-4 py-2 rounded-md flex items-center gap-2">
           <Copy className="h-4 w-4" />
-          <span>This is a cloned checklist from "{mockChecklists[checklist.clonedFrom || ""].name}"</span>
+          <span>This is a cloned checklist</span>
         </div>
       )}
 
