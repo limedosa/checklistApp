@@ -24,10 +24,27 @@ const handleResponse = async (response: Response) => {
 };
 
 // Checklist API functions with authentication
-export const fetchChecklists = async (): Promise<ApiChecklist[]> => {
-  const response = await fetchWithAuth(`${API_URL}/checklists`);
-  return handleResponse(response);
-};
+export async function fetchChecklists() {
+  try {
+    const response = await fetch('/api/checklists', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // Ensure credentials are included for session cookies
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching checklists:', error);
+    throw error;
+  }
+}
 
 export const fetchChecklist = async (id: string): Promise<ApiChecklist> => {
   const response = await fetchWithAuth(`${API_URL}/checklists/${id}`);

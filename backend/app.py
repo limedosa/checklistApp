@@ -2,6 +2,7 @@ from fastapi import FastAPI
 import sys
 import os
 from os.path import dirname, abspath
+from fastapi.responses import RedirectResponse
 
 # Add the project root directory to the path
 sys.path.append(dirname(dirname(abspath(__file__))))
@@ -29,12 +30,7 @@ app.include_router(checklists_router)
 
 @app.get("/")
 async def root():
-    return {
-        "message": "Checklist App API is running",
-        "endpoints": {
-            "checklists": "http://127.0.0.1:8001/checklists"
-        }
-    }
+    return RedirectResponse(url="/docs")
 
 if __name__ == "__main__":
     import uvicorn

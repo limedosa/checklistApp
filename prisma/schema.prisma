@@ -1,0 +1,14 @@
+// Update User model or create it if it doesn't exist
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  // Add any other existing fields your User model might have
+  
+  // Relations to other models can go here
+  accounts      Account[]
+  sessions      Session[]
+  // Other relations like checklists, tasks, etc.
+}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, FolderPlus, Clock, Share2 } from "lucide-react"
@@ -12,10 +13,8 @@ import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 import { fetchChecklists as fetchChecklistsFromApi } from "@/lib/api-client"
 
-// Remove or comment out the mock data since we're using the API now
-// const mockChecklists: Checklist[] = [...]
-
 export default function Dashboard() {
+  const { data: session } = useSession()
   const [checklists, setChecklists] = useState<Checklist[]>([])
   const [filteredChecklists, setFilteredChecklists] = useState<Checklist[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -23,12 +22,16 @@ export default function Dashboard() {
   const router = useRouter()
   const { toast } = useToast()
 
+  // Log session info for debugging
   useEffect(() => {
-    // Renamed to avoid conflict with the imported function
+    console.log("Current session:", session)
+  }, [session])
+
+  useEffect(() => {
     const loadChecklists = async () => {
       try {
         setIsLoading(true)
-        // Use the imported function from api-client.ts
+        console.log("Fetching checklists for user:", session?.user?.id)
         const data = await fetchChecklistsFromApi()
         console.log('API Response:', data)
         
@@ -37,7 +40,6 @@ export default function Dashboard() {
         if (Array.isArray(data)) {
           checklistArray = data
         } else if (data && typeof data === 'object') {
-          // If data is an object with checklists property (common API response pattern)
           if (Array.isArray(data.checklists)) {
             checklistArray = data.checklists
           } else if (data.checklists && typeof data.checklists === 'object') {
@@ -50,18 +52,33 @@ export default function Dashboard() {
         setFilteredChecklists(checklistArray)
       } catch (error) {
         console.error("Failed to fetch checklists:", error)
-        toast({
-          title: "Error",
-          description: "Failed to load checklists",
-          variant: "destructive",
-        })
+        // Handle unauthorized errors appropriately
+        if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          toast({
+            title: "Authentication Error",
+            description: "Please sign in to view your checklists",
+            variant: "destructive",
+          })
+          // Redirect to login if needed
+          router.push('/login')
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to load checklists",
+            variant: "destructive",
+          })
+        }
+        setChecklists([])
+        setFilteredChecklists([])
       } finally {
         setIsLoading(false)
       }
     }
 
-    loadChecklists()
-  }, [toast])
+    if (session?.user) {
+      loadChecklists()
+    }
+  }, [session, toast, router])
 
   // Filter checklists based on search query
   useEffect(() => {
@@ -171,79 +188,34 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredChecklists.map((checklist) => (
-                <ChecklistCard key={checklist.id} checklist={checklist} onShare={handleShare} />
+                <div key={checklist.id} className="border rounded-md p-4">
+                  <h3 className="font-bold">{checklist.name}</h3>
+                  <p className="text-sm text-gray-500">
+                    {checklist.categories.length} categories, 
+                    {checklist.categories.reduce((acc, category) => acc + category.items.length, 0)} items
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => router.push(`/checklist/${checklist.id}`)}
+                    >
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleShare(checklist.id)}
+                    >
+                      Share
+                    </Button>
+                  </div>
+                </div>
               ))}
-              <CreateNewCard onClick={handleCreateNew} />
             </div>
           )}
         </>
       )}
     </div>
-  )
-}
-
-function ChecklistCard({ checklist, onShare }: { checklist: Checklist; onShare: (id: string) => void }) {
-  const totalItems = checklist.categories.reduce((sum, category) => sum + category.items.length, 0)
-
-  return (
-    <Card className="overflow-hidden flex flex-col">
-      <CardHeader className="pb-2">
-        <CardTitle className="truncate">{checklist.name}</CardTitle>
-        <CardDescription>
-          {checklist.categories.length} categories • {totalItems} items
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex-grow">
-        <div className="space-y-2">
-          {checklist.categories.slice(0, 2).map((category) => (
-            <div key={category.id} className="text-sm">
-              <span className="font-medium">{category.name}:</span>{" "}
-              <span className="text-muted-foreground">
-                {category.items
-                  .slice(0, 2)
-                  .map((item) => item.name)
-                  .join(", ")}
-                {category.items.length > 2 && ", ..."}
-              </span>
-            </div>
-          ))}
-          {checklist.categories.length > 2 && <div className="text-sm text-muted-foreground">...</div>}
-        </div>
-      </CardContent>
-      <CardFooter className="border-t bg-muted/50 pt-3">
-        <div className="flex w-full justify-between items-center">
-          <div className="flex items-center text-xs text-muted-foreground gap-2">
-            <Clock className="h-3 w-3" />
-            <span>Updated 2 days ago</span>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="gap-1" onClick={() => onShare(checklist.id)}>
-              <Share2 className="h-3.5 w-3.5" />
-              Share
-            </Button>
-            <Button asChild>
-              <Link href={`/checklist/${checklist.id}`}>Open</Link>
-            </Button>
-          </div>
-        </div>
-      </CardFooter>
-    </Card>
-  )
-}
-
-function CreateNewCard({ onClick }: { onClick: () => void }) {
-  return (
-    <Card
-      className="flex flex-col items-center justify-center p-6 h-full border-dashed cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
-      onClick={onClick}
-    >
-      <div className="flex flex-col items-center gap-2 text-center">
-        <div className="p-3 rounded-full bg-primary/10">
-          <Plus className="h-6 w-6 text-primary" />
-        </div>
-        <h3 className="font-medium">Create New Checklist</h3>
-        <p className="text-sm text-muted-foreground">Start from scratch or use a template</p>
-      </div>
-    </Card>
   )
 }
