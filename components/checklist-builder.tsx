@@ -11,6 +11,7 @@ import SharedView from "@/components/shared-view"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { useSession } from "next-auth/react"
 import { 
   fetchChecklist, 
   createChecklist, 
@@ -36,6 +37,7 @@ export type Checklist = {
   categories: Category[]
   isCloned?: boolean
   clonedFrom?: string
+  userEmail?: string
 }
 
 interface ChecklistBuilderProps {
@@ -53,6 +55,7 @@ export default function ChecklistBuilder({ id = "new" }: ChecklistBuilderProps) 
   const [newTitle, setNewTitle] = useState(checklist.name)
   const router = useRouter()
   const { toast } = useToast()
+  const { data: session } = useSession()
 
   useEffect(() => {
     const fetchChecklistData = async () => {
@@ -61,6 +64,9 @@ export default function ChecklistBuilder({ id = "new" }: ChecklistBuilderProps) 
         
         if (id !== "new") {
           const data = await fetchChecklist(id)
+          console.log("Session user email:", session?.user?.email);
+          console.log("Request body before adding email:", data);
+          console.log("Request body after adding email:", data);
           setChecklist(data)
           setNewTitle(data.name)
         } else {
@@ -129,19 +135,16 @@ export default function ChecklistBuilder({ id = "new" }: ChecklistBuilderProps) 
       let savedChecklist: Checklist
       
       if (id === "new") {
-        // Create a new checklist
         savedChecklist = await createChecklist({
           name: checklist.name,
           categories: checklist.categories,
           isCloned: checklist.isCloned,
-          clonedFrom: checklist.clonedFrom
+          clonedFrom: checklist.clonedFrom,
         })
         
-        // Redirect to the new checklist URL
         router.push(`/checklist/${savedChecklist.id}`)
         router.refresh()
       } else {
-        // Update existing checklist
         savedChecklist = await updateChecklist(id, {
           name: checklist.name,
           categories: checklist.categories
@@ -171,7 +174,6 @@ export default function ChecklistBuilder({ id = "new" }: ChecklistBuilderProps) 
       setIsLoading(true)
       
       if (id === "new") {
-        // If it's a new unsaved checklist, just save it first
         toast({
           title: "Save Required",
           description: "Please save your checklist before cloning it.",
@@ -187,7 +189,6 @@ export default function ChecklistBuilder({ id = "new" }: ChecklistBuilderProps) 
         description: "Checklist cloned successfully!",
       })
       
-      // Navigate to the cloned checklist
       router.push(`/checklist/${clonedChecklist.id}`)
       router.refresh()
     } catch (error) {

@@ -7,6 +7,7 @@ export type ApiChecklist = {
   categories: Category[];
   isCloned?: boolean;
   clonedFrom?: string;
+  userEmail?: string;  // Add this field
   created_at: string;
   updated_at: string;
 };

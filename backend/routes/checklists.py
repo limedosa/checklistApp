@@ -28,6 +28,7 @@ class ChecklistBase(BaseModel):
     categories: List[CategoryItem] = []
     isCloned: Optional[bool] = None
     clonedFrom: Optional[str] = None
+    userEmail: Optional[str] = None  # Add this field
 
 class ChecklistCreate(ChecklistBase):
     pass
@@ -107,6 +108,7 @@ async def clone_checklist(checklist_id: str, new_name: str = Query(None)):
     cloned_data.pop("id", None)
     cloned_data["isCloned"] = True
     cloned_data["clonedFrom"] = checklist_id
+    # Keep the userEmail from the original checklist
     
     # Set a new name if provided, otherwise add "(Copy)" to the original name
     if new_name:

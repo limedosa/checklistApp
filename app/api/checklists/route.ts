@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { readChecklists, createChecklist, ChecklistData } from '@/lib/db';
+import { readChecklists } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -30,32 +30,16 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(userChecklists);
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
+  const data = await request.json();
   
-  if (!session || !session.user || !session.user.email) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Add user email to the request data
+  const userEmail = session?.user?.email || "anonymous@example.com";
+  data.userEmail = userEmail;
   
-  try {
-    const data: ChecklistData = await req.json();
-    const userEmail = session.user.email;
-    
-    // Add userEmail to the checklist data
-    const checklistWithUser: ChecklistData = {
-      ...data,
-      userEmail,
-    };
-    
-    // Save the checklist to the database
-    const newChecklist = await createChecklist(checklistWithUser);
-    
-    return NextResponse.json(newChecklist);
-  } catch (error) {
-    console.error('Error creating checklist:', error);
-    return NextResponse.json(
-      { error: 'Failed to create checklist' },
-      { status: 500 }
-    );
-  }
+  console.log("Creating checklist with email:", userEmail);
+  
+  // Rest of your code
+  // ...
 }
