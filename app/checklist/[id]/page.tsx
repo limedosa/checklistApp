@@ -1,13 +1,14 @@
 import ChecklistBuilder from "@/components/checklist-builder"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 
-export default function ChecklistPage({ params }: { params: { id: string } }) {
-  // In a real app, this would verify a JWT token or session
-  const cookieStore = cookies()
-  const isLoggedIn = cookieStore.has("user")
-
-  if (!isLoggedIn) {
+export default async function ChecklistPage({ params }: { params: { id: string } }) {
+  // Use NextAuth session instead of cookies
+  const session = await getServerSession(authOptions)
+  
+  if (!session) {
     redirect("/login")
   }
 

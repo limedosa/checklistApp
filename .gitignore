@@ -28,3 +28,8 @@ next-env.d.ts
 
 .venv/
 venv/
+
+/python_env/
+/cache
+/.pytest_cache
+/pytest_cache

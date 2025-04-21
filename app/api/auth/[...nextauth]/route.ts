@@ -1,42 +1,39 @@
 // /app/api/auth/[...nextauth]/route.ts
 
-import NextAuth from "next-auth";
-import GitHubProvider from "next-auth/providers/github";
-import GoogleProvider from "next-auth/providers/google";
-import CredentialsProvider from "next-auth/providers/credentials";
-import type { NextAuthOptions } from "next-auth";
+import NextAuth from "next-auth"
+import GoogleProvider from "next-auth/providers/google"
+import type { NextAuthOptions } from "next-auth"
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    GitHubProvider({
-      clientId: process.env.GITHUB_ID!,
-      clientSecret: process.env.GITHUB_SECRET!,
-    }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
-      },
-      async authorize(credentials) {
-        // Add your own authentication logic here
-        // This is where you would verify credentials against your database
-        if (credentials?.email === "user@example.com" && credentials?.password === "password") {
-          return { id: "1", name: "User", email: "user@example.com" };
-        }
-        return null;
-      }
-    }),
   ],
-  pages: {
-    signIn: '/login', // Use your custom login page
+  callbacks: {
+    session: async ({ session, token }) => {
+      if (session?.user) {
+        // Add the user ID to the session
+        session.user.id = token.sub || token.id as string;
+        console.log("Setting session user ID:", session.user.id); // Debug info
+      }
+      return session;
+    },
+    jwt: async ({ token, user, account }) => {
+      // Initial sign in
+      if (account && user) {
+        token.id = user.id;
+        token.provider = account.provider;
+      }
+      return token;
+    },
   },
-  secret: process.env.NEXTAUTH_SECRET,
-};
+  session: {
+    strategy: "jwt",
+  },
+  debug: true, // Enable debug messages
+}
 
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
