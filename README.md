@@ -27,12 +27,12 @@ This tool is ideal for onboarding processes, client approvals, project managemen
 - **Breadcrumb Navigation**: Easy navigation throughout the application
 - **User Profile**: Manage your account settings and preferences
 ## Must haves: 
--Add a .env.local file with these values: 
-     - NEXT_PUBLIC_API_URL=http://localhost:8001
-     - NEXTAUTH_SECRET=your_nextauth_secret
-     - GOOGLE_CLIENT_ID=your_google_client_id
-     - GOOGLE_CLIENT_SECRET=your_google_client_secret
-      -NEXTAUTH_URL=http://localhost:3000
+- Add a .env.local file with these values: 
+- NEXT_PUBLIC_API_URL=http://localhost:8001
+- NEXTAUTH_SECRET=your_nextauth_secret
+- GOOGLE_CLIENT_ID=your_google_client_id
+- GOOGLE_CLIENT_SECRET=your_google_client_secret
+- NEXTAUTH_URL=http://localhost:3000
       
 -App will not run otherwise. 
 
